@@ -90,6 +90,24 @@ npm run build
 npm start
 ```
 
+### Operations
+
+The container exposes a small health endpoint and structured JSON logs:
+
+```bash
+docker compose logs -f --tail=100
+curl -s http://127.0.0.1:3000/api/health
+```
+
+Log lines are `startup`, `request` (method, path, forwarded proto, request id)
+and `request_error`. `APP_VERSION` and `GIT_COMMIT` are baked in at image build
+time and returned by the health endpoint. Static assets and health checks are
+excluded from the access log.
+
+The Compose port is bound to `0.0.0.0:3000` for a TLS reverse proxy. Point the
+proxy at `http://<host>:3000`; the app itself still detects the browser protocol
+and shows the HTTP warning when the proxy is missing.
+
 ## Configuration
 
 Open **Settings** and add a GitHub token.

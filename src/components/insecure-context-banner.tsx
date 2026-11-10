@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useSyncExternalStore } from 'react';
+import { useEffect, useState } from 'react';
 import { ShieldAlert } from 'lucide-react';
 
 interface InsecureContextBannerProps {
@@ -8,21 +8,23 @@ interface InsecureContextBannerProps {
   protocol?: string;
 }
 
-const subscribe = () => () => {};
-
 /**
  * Warn when the UI is served over plain HTTP. A network attacker who can modify
  * this page could also read the GitHub token entered into it, so the warning is
  * shown before the dashboard is used. The page itself remains fully usable.
+ *
+ * The protocol is read after mount so the static HTML (which has no banner) and
+ * the client render stay identical during hydration.
  */
 export function InsecureContextBanner({ protocol }: InsecureContextBannerProps) {
-  const getSnapshot = useCallback(
-    () => protocol ?? window.location.protocol,
-    [protocol]
-  );
-  const currentProtocol = useSyncExternalStore(subscribe, getSnapshot, () => 'https:');
+  const [isHttp, setIsHttp] = useState(false);
 
-  if (currentProtocol !== 'http:') return null;
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration-safe check
+    setIsHttp((protocol ?? window.location.protocol) === 'http:');
+  }, [protocol]);
+
+  if (!isHttp) return null;
 
   return (
     <div

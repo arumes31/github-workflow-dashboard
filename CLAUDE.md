@@ -56,6 +56,9 @@ Context hierarchy in `src/app/layout.tsx`:
   browser-notification delivery (deduplicated per run).
 - `src/components/insecure-context-banner.tsx` — HTTP-only warning; the app must
   still render and work behind a TLS reverse proxy.
+- `src/app/api/health/route.ts`, `src/instrumentation.ts`, `src/middleware.ts` —
+  health/version endpoint, startup/error logs and the request access log. Keep
+  logs JSON lines and never include tokens or query strings.
 - `src/app/settings/components/` — token, display, instructions and security
   sections; the page only composes them.
 - `src/lib/storage/secure-storage.ts` — public encrypted storage API;
