@@ -1,14 +1,10 @@
 import type { Metadata } from "next";
-// import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { GitHubTokenProvider } from "@/contexts/github-token-context";
-import { RepositorySelectionProvider } from "@/contexts/repository-selection-context";
-import { WorkflowProvider } from "@/contexts/workflow-context";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { DisplaySettingsProvider } from "@/contexts/display-settings-context";
+import { AuthProvider } from "@/contexts/auth-context";
+import { AuthGate } from "@/components/auth-gate";
 import { InsecureContextBanner } from "@/components/insecure-context-banner";
-
-// Removed Geist font imports for Docker build reliability
 
 export const metadata: Metadata = {
   title: "GitHub Workflow Dashboard",
@@ -26,13 +22,9 @@ export default function RootLayout({
         <InsecureContextBanner />
         <ThemeProvider>
           <DisplaySettingsProvider>
-            <GitHubTokenProvider>
-              <RepositorySelectionProvider>
-                <WorkflowProvider>
-                  {children}
-                </WorkflowProvider>
-              </RepositorySelectionProvider>
-            </GitHubTokenProvider>
+            <AuthProvider>
+              <AuthGate>{children}</AuthGate>
+            </AuthProvider>
           </DisplaySettingsProvider>
         </ThemeProvider>
       </body>

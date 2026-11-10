@@ -21,9 +21,9 @@ fix is prepared.
 
 ## Scope
 
-This is a client-only Next.js application. The browser talks directly to
-`https://api.github.com`; there is no application backend and no server-side token
-storage.
+This is a Next.js application with a small local account service. The browser
+talks directly to `https://api.github.com`; the server stores each user's GitHub
+token encrypted at rest and exposes it only to that user's signed session.
 
 In scope:
 

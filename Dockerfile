@@ -28,7 +28,8 @@ ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0 \
     APP_VERSION=$APP_VERSION \
-    GIT_COMMIT=$GIT_COMMIT
+    GIT_COMMIT=$GIT_COMMIT \
+    DATA_DIR=/data
 
 LABEL org.opencontainers.image.title="GitHub Workflow Monitor" \
       org.opencontainers.image.description="Dashboard for GitHub Actions workflow status, runtime and queue metrics" \
@@ -37,7 +38,9 @@ LABEL org.opencontainers.image.title="GitHub Workflow Monitor" \
       org.opencontainers.image.revision=$GIT_COMMIT
 
 RUN addgroup -g 1001 -S nodejs \
- && adduser -S nextjs -u 1001 -G nodejs
+ && adduser -S nextjs -u 1001 -G nodejs \
+ && mkdir -p /data \
+ && chown nextjs:nodejs /data
 
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

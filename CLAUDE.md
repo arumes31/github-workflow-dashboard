@@ -27,7 +27,9 @@ docker run --rm -v "$PWD:/app" -v gwm_node_modules:/app/node_modules \
 ## Architecture
 
 Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4, shadcn/ui on Radix.
-The app is client-only: there is no API route and no server-side token handling.
+The dashboard is client-heavy; a small Node route-handler layer provides local
+account login, session cookies, per-user encrypted GitHub tokens and health
+checks.
 
 Context hierarchy in `src/app/layout.tsx`:
 
@@ -61,7 +63,15 @@ Context hierarchy in `src/app/layout.tsx`:
   logs JSON lines and never include tokens or query strings.
 - `src/app/settings/components/` — token, display, instructions and security
   sections; the page only composes them.
-- `src/lib/storage/secure-storage.ts` — public encrypted storage API;
+- `src/lib/auth/store.ts` — users, scrypt password hashes, AES-256-GCM token
+  encryption and the JSON store under `DATA_DIR`.
+- `src/lib/auth/session.ts` — HMAC-signed session cookie, origin/HTTPS checks.
+- `src/app/api/auth/*` — login, logout, me, change-password, token and admin user
+  creation. Routes enforce the session; the client gate is only cosmetic.
+- `src/contexts/auth-context.tsx` + `src/components/auth-gate.tsx` — login state
+  and route gating.
+- `src/app/login/page.tsx` — sign-in and forced first-login password change.
+- `src/lib/storage/secure-storage.ts` — public encrypted browser storage API;
   `storage-crypto.ts` holds the IndexedDB, HKDF and AES-256-GCM primitives.
   Never persist a token in plaintext.
 

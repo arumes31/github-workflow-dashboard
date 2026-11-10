@@ -20,7 +20,8 @@ services:
     tmpfs:
       - /tmp
     volumes:
-      - /mnt/sdb1/github-workflow-monitor/next-cache:/app/.next/cache
+      - ${NEXT_CACHE_DIR:-./.next-cache}:/app/.next/cache
+      - ${DATA_DIR:-./.data}:/data
     security_opt:
       - no-new-privileges:true
     cap_drop:

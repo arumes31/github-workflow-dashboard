@@ -7,6 +7,8 @@ import { RepositorySelection } from '@/components/repository-selection';
 import { TokenSettings } from './components/token-settings';
 import { DisplaySettings } from './components/display-settings';
 import { AlertSettings } from './components/alert-settings';
+import { AccountSettings } from './components/account-settings';
+import { UsersSettings } from './components/users-settings';
 import { TokenInstructions } from './components/token-instructions';
 import { SecuritySection } from './components/security-section';
 
@@ -33,6 +35,8 @@ export default function SettingsPage() {
 
           <DisplaySettings />
           <AlertSettings />
+          <AccountSettings />
+          <UsersSettings />
           <TokenInstructions />
           <SecuritySection />
         </div>
