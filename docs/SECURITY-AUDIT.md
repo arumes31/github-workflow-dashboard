@@ -24,7 +24,7 @@
 | F-09 | Medium | No CI security controls or reproducible builds | Fixed — CI, CodeQL, dependency review, Gitleaks, Scorecard, Trivy, SBOM |
 | F-10 | Low | Stored repository JSON trusted without shape validation | Fixed — validated before use |
 | F-11 | Low | Stored display settings trusted without validation | Fixed — sanitised and length-limited |
-| F-12 | Low | Test suite was entirely red, so regressions were invisible | Fixed — 80 tests, lint, typecheck and build are green |
+| F-12 | Low | Test suite was entirely red, so regressions were invisible | Fixed — 82 tests, lint, typecheck and build are green |
 | F-13 | Info | Client-only architecture has no server-side token store | Accepted — no backend to compromise |
 | F-14 | Low | Theme and last-org preferences stored in plain localStorage | Accepted — non-sensitive data |
 
@@ -183,7 +183,7 @@ most were standalone console scripts that called `process.exit`. Every suite
 failed, `tsc --noEmit` failed, and CI could never have been green.
 
 **Fix:** removed the fake suites, replaced them with five real suites
-(80 tests), and configured Jest to collect only `*.test.ts(x)`. Lint, typecheck,
+(82 tests), and configured Jest to collect only `*.test.ts(x)`. Lint, typecheck,
 tests and the production build now pass from a clean Linux install.
 
 ## 3. Verification performed
@@ -194,7 +194,7 @@ found 0 vulnerabilities
 
 $ npm run lint && npm run typecheck && npm test -- --ci
 Test Suites: 5 passed, 5 total
-Tests:       80 passed, 80 total
+Tests:       82 passed, 82 total
 
 $ npm run build
 ✓ Compiled successfully

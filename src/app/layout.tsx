@@ -6,6 +6,7 @@ import { RepositorySelectionProvider } from "@/contexts/repository-selection-con
 import { WorkflowProvider } from "@/contexts/workflow-context";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { DisplaySettingsProvider } from "@/contexts/display-settings-context";
+import { InsecureContextBanner } from "@/components/insecure-context-banner";
 
 // Removed Geist font imports for Docker build reliability
 
@@ -22,6 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased" style={{ fontFamily: 'system-ui, sans-serif' }}>
+        <InsecureContextBanner />
         <ThemeProvider>
           <DisplaySettingsProvider>
             <GitHubTokenProvider>

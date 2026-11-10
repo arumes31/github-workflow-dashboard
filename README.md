@@ -35,6 +35,8 @@ browser talks directly to `api.github.com` and stores the token encrypted.
   over-privileged tokens.
 - **Security headers**: CSP, HSTS, `X-Frame-Options: DENY`, COOP/CORP,
   `Permissions-Policy`, `nosniff`, no `X-Powered-By`.
+- **Plain-HTTP warning**: a banner appears when the UI is opened over HTTP but the
+  dashboard still loads and works, so a reverse proxy can terminate TLS.
 - **Hardened container**: multi-stage build, non-root, read-only root filesystem
   and dropped capabilities in Compose.
 - **No external assets**: all JavaScript, CSS and fonts are bundled and served
