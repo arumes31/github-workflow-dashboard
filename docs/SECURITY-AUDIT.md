@@ -83,7 +83,9 @@ permissions policy, and exposed `X-Powered-By`.
 
 - `Content-Security-Policy` with `default-src 'self'`, `connect-src 'self'
   https://api.github.com`, `object-src 'none'`, `frame-ancestors 'none'`,
-  `base-uri 'self'`, `form-action 'self'` and `upgrade-insecure-requests`.
+  `base-uri 'self'` and `form-action 'self'`. `upgrade-insecure-requests` is
+  deliberately omitted so the HTTP warning page can load its assets; mixed
+  content is still blocked by the browser on HTTPS.
 - `Strict-Transport-Security` in production.
 - `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
   `Referrer-Policy: strict-origin-when-cross-origin`,
