@@ -20,6 +20,12 @@ browser talks directly to `api.github.com` and stores the token encrypted.
 - **Reliability signals**: pass rate over the recent window, consecutive
   failures, last success, and stale-run warnings (running > 90 min, queued >
   45 min).
+- **Per-job breakdown** on demand: job status, duration, runner, and the failed
+  step for each job in a run.
+- **Runner utilization**: active jobs grouped by runner, with running/queued
+  counts and average runtime.
+- **Browser alerts** for default-branch failures, long queues and long runtimes;
+  delivered while the dashboard is open, with no server involved.
 - **Fleet metrics strip** with pass rate, average runtime, average queue, active
   runs, stale count and the GitHub API quota left.
 - **Filters** by status/conclusion, "Only me", repository search, compact mode,
@@ -161,7 +167,11 @@ residual risks.
   best approximation available from the Runs API.
 - Very large organizations are capped at 2,000 repositories per owner and 50
   recent runs per repository to stay within rate limits.
-- This is a monitoring UI, not an alerting system. There are no notifications.
+- This is a monitoring UI, not an alerting service. Browser alerts fire only
+  while the dashboard is open; there is no server-side pager or email.
+- Job details and runner utilization use the Actions jobs endpoint, one request
+  per expanded run or active run (up to 10) and therefore consume extra API
+  quota.
 
 ## License
 

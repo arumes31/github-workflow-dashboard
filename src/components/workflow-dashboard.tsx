@@ -13,8 +13,10 @@ import { filterRuns } from '@/lib/workflow-filters';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { DashboardSummary } from '@/components/dashboard-summary';
 import { FleetMetrics } from '@/components/workflow-stats';
+import { RunnerUtilization } from '@/components/runner-utilization';
 import { CompactWorkflowGrid, type CompactWorkflowItem } from '@/components/compact-workflow-grid';
 import { RepositoryWorkflowCard } from '@/components/repository-workflow-card';
+import { useWorkflowAlerts } from '@/hooks/use-workflow-alerts';
 import { AlertCircle, XCircle } from 'lucide-react';
 
 export function WorkflowDashboard() {
@@ -35,6 +37,8 @@ export function WorkflowDashboard() {
 
   const [activeFilter, setActiveFilter] = React.useState<string | null>(null);
   const [onlyMe, setOnlyMe] = React.useState(false);
+
+  useWorkflowAlerts(repositoryWorkflows, settings.alerts);
 
   // Keyboard shortcuts: R refresh, S settings, Z compact.
   React.useEffect(() => {
@@ -152,6 +156,7 @@ export function WorkflowDashboard() {
       />
 
       <FleetMetrics repositories={repositoryWorkflows} rateLimit={rateLimit} />
+      <RunnerUtilization repositories={repositoryWorkflows} />
 
       {error && (
         <Card className="mt-4 border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30">

@@ -50,7 +50,10 @@ Context hierarchy in `src/app/layout.tsx`:
 - `src/components/workflow-dashboard.tsx` — thin orchestrator. Presentation lives
   in `dashboard-header.tsx`, `dashboard-summary.tsx`,
   `repository-workflow-card.tsx`, `compact-workflow-grid.tsx`,
-  `repository-row.tsx` and `workflow-stats.tsx`.
+  `repository-row.tsx`, `workflow-jobs.tsx`, `runner-utilization.tsx` and
+  `workflow-stats.tsx`.
+- `src/lib/alerts.ts` + `src/hooks/use-workflow-alerts.ts` — pure alert rules and
+  browser-notification delivery (deduplicated per run).
 - `src/app/settings/components/` — token, display, instructions and security
   sections; the page only composes them.
 - `src/lib/storage/secure-storage.ts` — public encrypted storage API;

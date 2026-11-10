@@ -8,6 +8,7 @@ import type { RepositoryWorkflows } from '@/contexts/workflow-context';
 import { formatRelativeTime } from '@/lib/format';
 import { RepositoryHealth, RunTiming } from '@/components/workflow-stats';
 import { WorkflowStatusBadge, getRunBorderColor } from '@/components/workflow-status-badge';
+import { WorkflowJobs } from '@/components/workflow-jobs';
 import { ExternalLink, Loader, RefreshCw, XCircle } from 'lucide-react';
 
 interface RepositoryWorkflowCardProps {
@@ -23,6 +24,8 @@ export function RepositoryWorkflowCard({
   activeFilter,
   onRefresh,
 }: RepositoryWorkflowCardProps) {
+  const [owner, repoName] = entry.repository.full_name.split('/');
+
   return (
     <Card className="overflow-hidden">
       <CardHeader>
@@ -127,6 +130,8 @@ export function RepositoryWorkflowCard({
                   <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-1 sm:line-clamp-2">
                     {workflow.display_title}
                   </p>
+
+                  <WorkflowJobs owner={owner} repo={repoName} run={workflow} />
                 </div>
               </div>
             ))}

@@ -33,12 +33,18 @@ jest.mock('@/contexts/display-settings-context', () => {
   return {
     REFRESH_INTERVALS: actual.REFRESH_INTERVALS,
     useDisplaySettings: () => ({
-      settings: { compactMode: false, refreshInterval: 120, dashboardName: 'Workflow Monitor' },
+      settings: {
+        compactMode: false,
+        refreshInterval: 120,
+        dashboardName: 'Workflow Monitor',
+        alerts: { enabled: false, notifyOnFailure: true, queueMinutes: 30, runMinutes: 90 },
+      },
       updateSettings: jest.fn(),
       toggleCompactMode: jest.fn(),
       setRefreshInterval: jest.fn(),
       getRefreshIntervalLabel: () => '2 minutes',
       setDashboardName,
+      setAlertPreferences: jest.fn(),
     }),
   };
 });

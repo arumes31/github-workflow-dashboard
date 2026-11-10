@@ -190,6 +190,28 @@ describe('GitHubApiClient', () => {
     expect(latest[10].id).toBe(2);
     expect(latest[11].id).toBe(3);
   });
+
+  it('fetches jobs for a run and paginates until a short page', async () => {
+    const firstPage = Array.from({ length: 100 }, (_, index) => ({ id: index + 1 }));
+    mockFetch
+      .mockResolvedValueOnce(response({ total_count: 101, jobs: firstPage }))
+      .mockResolvedValueOnce(response({ total_count: 101, jobs: [{ id: 101 }] }));
+
+    const client = new GitHubApiClient(token);
+    const jobs = await client.getWorkflowRunJobs('owner', 'repo', 99);
+
+    expect(jobs).toHaveLength(101);
+    expect(mockFetch.mock.calls[0][0]).toBe(
+      'https://api.github.com/repos/owner/repo/actions/runs/99/jobs?per_page=100&page=1'
+    );
+    expect(mockFetch.mock.calls[1][0]).toContain('page=2');
+  });
+
+  it('rejects an invalid workflow run id', async () => {
+    const client = new GitHubApiClient(token);
+    await expect(client.getWorkflowRunJobs('owner', 'repo', 0)).rejects.toThrow(/invalid workflow run id/i);
+    await expect(client.getWorkflowRunJobs('owner', 'repo', 1.5)).rejects.toThrow(/invalid workflow run id/i);
+  });
 });
 
 describe('isValidGitHubName', () => {

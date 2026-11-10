@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { normalizeAlertPreferences, type AlertPreferences } from '@/lib/alerts';
 
 export const REFRESH_INTERVALS = [
   { value: 10, label: '10 seconds' },
@@ -19,6 +20,7 @@ interface DisplaySettings {
   compactMode: boolean;
   refreshInterval: RefreshInterval;
   dashboardName: string;
+  alerts: AlertPreferences;
 }
 
 interface DisplaySettingsContextType {
@@ -28,6 +30,7 @@ interface DisplaySettingsContextType {
   setRefreshInterval: (interval: RefreshInterval) => void;
   getRefreshIntervalLabel: (interval: RefreshInterval) => string;
   setDashboardName: (name: string) => void;
+  setAlertPreferences: (updates: Partial<AlertPreferences>) => void;
 }
 
 const DisplaySettingsContext = createContext<DisplaySettingsContextType | undefined>(undefined);
@@ -47,7 +50,8 @@ interface DisplaySettingsProviderProps {
 const DEFAULT_SETTINGS: DisplaySettings = {
   compactMode: false,
   refreshInterval: 120, // Default 2 minutes (keeping existing behavior)
-  dashboardName: 'GitHub Workflow Dashboard'
+  dashboardName: 'GitHub Workflow Dashboard',
+  alerts: normalizeAlertPreferences(),
 };
 
 const SETTINGS_KEY = 'github-flow-dashboard-settings';
@@ -70,6 +74,7 @@ function sanitizeSettings(input: unknown): DisplaySettings {
     compactMode: value.compactMode === true,
     refreshInterval,
     dashboardName,
+    alerts: normalizeAlertPreferences(value.alerts),
   };
 }
 
@@ -121,6 +126,21 @@ export function DisplaySettingsProvider({ children }: DisplaySettingsProviderPro
     updateSettings({ dashboardName: name });
   }, [updateSettings]);
 
+  const setAlertPreferences = useCallback((updates: Partial<AlertPreferences>) => {
+    setSettings((current) => {
+      const newSettings = {
+        ...current,
+        alerts: normalizeAlertPreferences({ ...current.alerts, ...updates }),
+      };
+      try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
+      } catch {
+        // Ignore blocked storage.
+      }
+      return newSettings;
+    });
+  }, []);
+
   const getRefreshIntervalLabel = useCallback((interval: RefreshInterval): string => {
     const found = REFRESH_INTERVALS.find(item => item.value === interval);
     return found?.label || `${interval} seconds`;
@@ -134,7 +154,8 @@ export function DisplaySettingsProvider({ children }: DisplaySettingsProviderPro
         toggleCompactMode,
         setRefreshInterval,
         getRefreshIntervalLabel,
-        setDashboardName
+        setDashboardName,
+        setAlertPreferences
       }}
     >
       {children}

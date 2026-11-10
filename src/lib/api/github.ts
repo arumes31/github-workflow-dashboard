@@ -7,6 +7,7 @@ import type {
   GitHubRateLimit,
   GitHubWorkflowRunSnapshot,
   GitHubTokenDetails,
+  GitHubWorkflowJob,
 } from './types';
 
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -265,6 +266,31 @@ export class GitHubApiClient {
       rateLimit: response.rateLimit ?? { limit: 0, remaining: 0, reset: 0 },
       scopes: response.scopes,
     };
+  }
+
+  /**
+   * Jobs for one workflow run, including per-step status and the runner.
+   * Used by the per-run breakdown and runner utilization.
+   */
+  async getWorkflowRunJobs(
+    owner: string,
+    repo: string,
+    runId: number
+  ): Promise<GitHubWorkflowJob[]> {
+    if (!Number.isSafeInteger(runId) || runId <= 0) {
+      throw new GitHubApiError('Invalid workflow run id', 400);
+    }
+
+    const jobs: GitHubWorkflowJob[] = [];
+    for (let page = 1; page <= 5; page += 1) {
+      const response = await this.makeRequest<{ total_count?: number; jobs: GitHubWorkflowJob[] }>(
+        `${repoPath(owner, repo)}/actions/runs/${runId}/jobs?per_page=100&page=${page}`
+      );
+      const pageJobs = response.data.jobs ?? [];
+      jobs.push(...pageJobs);
+      if (pageJobs.length < 100) break;
+    }
+    return jobs;
   }
 
   // Get latest workflow run for each workflow in a repository (legacy, N+1 calls)

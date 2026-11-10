@@ -117,6 +117,32 @@ export interface GitHubWorkflowRunSnapshot {
   scopes: string[];
 }
 
+export interface GitHubWorkflowStep {
+  name: string;
+  status: string;
+  conclusion: string | null;
+  number: number;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface GitHubWorkflowJob {
+  id: number;
+  run_id: number;
+  name: string;
+  status: string;
+  conclusion: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  runner_id?: number | null;
+  runner_name?: string | null;
+  runner_group_id?: number | null;
+  runner_group_name?: string | null;
+  labels: string[];
+  html_url: string;
+  steps?: GitHubWorkflowStep[];
+}
+
 export interface GitHubTokenDetails {
   user: GitHubUser;
   scopes: string[];

@@ -6,6 +6,7 @@ import { useGitHubToken } from '@/contexts/github-token-context';
 import { RepositorySelection } from '@/components/repository-selection';
 import { TokenSettings } from './components/token-settings';
 import { DisplaySettings } from './components/display-settings';
+import { AlertSettings } from './components/alert-settings';
 import { TokenInstructions } from './components/token-instructions';
 import { SecuritySection } from './components/security-section';
 
@@ -31,6 +32,7 @@ export default function SettingsPage() {
           {token && isValidated && <RepositorySelection />}
 
           <DisplaySettings />
+          <AlertSettings />
           <TokenInstructions />
           <SecuritySection />
         </div>
