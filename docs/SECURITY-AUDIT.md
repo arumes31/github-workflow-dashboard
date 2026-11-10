@@ -24,7 +24,7 @@
 | F-09 | Medium | No CI security controls or reproducible builds | Fixed — CI, CodeQL, dependency review, Gitleaks, Scorecard, Trivy, SBOM |
 | F-10 | Low | Stored repository JSON trusted without shape validation | Fixed — validated before use |
 | F-11 | Low | Stored display settings trusted without validation | Fixed — sanitised and length-limited |
-| F-12 | Low | Test suite was entirely red, so regressions were invisible | Fixed — 70 tests, lint, typecheck and build are green |
+| F-12 | Low | Test suite was entirely red, so regressions were invisible | Fixed — 72 tests, lint, typecheck and build are green |
 | F-13 | Info | Client-only architecture has no server-side token store | Accepted — no backend to compromise |
 | F-14 | Low | Theme and last-org preferences stored in plain localStorage | Accepted — non-sensitive data |
 
@@ -181,8 +181,8 @@ Before this change, all 15 entries under `__tests__/` were collected by Jest but
 most were standalone console scripts that called `process.exit`. Every suite
 failed, `tsc --noEmit` failed, and CI could never have been green.
 
-**Fix:** removed the fake suites, replaced them with four real suites
-(70 tests), and configured Jest to collect only `*.test.ts(x)`. Lint, typecheck,
+**Fix:** removed the fake suites, replaced them with five real suites
+(72 tests), and configured Jest to collect only `*.test.ts(x)`. Lint, typecheck,
 tests and the production build now pass from a clean Linux install.
 
 ## 3. Verification performed
@@ -192,8 +192,8 @@ $ npm audit --omit=dev --audit-level=high
 found 0 vulnerabilities
 
 $ npm run lint && npm run typecheck && npm test -- --ci
-Test Suites: 4 passed, 4 total
-Tests:       70 passed, 70 total
+Test Suites: 5 passed, 5 total
+Tests:       72 passed, 72 total
 
 $ npm run build
 ✓ Compiled successfully

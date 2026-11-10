@@ -21,6 +21,13 @@ const eslintConfig = defineConfig([
       "react-hooks/set-state-in-effect": "off",
     },
   },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      // Keep modules reviewable; split by responsibility instead of growing a monolith.
+      "max-lines": ["error", { max: 450, skipBlankLines: true, skipComments: true }],
+    },
+  },
   globalIgnores([
     "node_modules/**",
     ".next/**",
