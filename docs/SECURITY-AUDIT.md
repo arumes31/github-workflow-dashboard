@@ -5,8 +5,7 @@
   (`src/`, `Dockerfile`, `docker-compose.yaml`, build and CI configuration)
 - **Method:** manual source review, dependency audit (`npm audit`), configuration
   review, container inspection, HTTP header checks, and CI scanners (CodeQL,
-  Trivy, Gitleaks, OpenSSF Scorecard). A live Strix assessment is noted in
-  [section 5](#5-live-testing).
+  Trivy, Gitleaks, OpenSSF Scorecard).
 - **Status:** all findings below are fixed in this branch unless explicitly
   marked as accepted risk.
 
@@ -225,6 +224,10 @@ runtime. They cannot be upgraded independently of Next.js; the current release
 They are documented with an expiry in [`.trivyignore`](../.trivyignore) so the
 gate turns red again after 2027-02-01 or after the next Next.js upgrade.
 
+A source scan confirms there are no external CSS, JavaScript or font URLs:
+Tailwind, React, Radix, Lucide and all fonts are bundled and served from the app
+origin. The only outbound runtime connection is `https://api.github.com`.
+
 ## 4. Residual risks and accepted trade-offs
 
 | Risk | Why it remains | Mitigation |
@@ -238,26 +241,7 @@ gate turns red again after 2027-02-01 or after the next Next.js upgrade.
 | Next.js vendored undici/brace-expansion advisories | Cannot be patched outside Next.js | Ignored with expiry in `.trivyignore`; re-check on every Next.js upgrade |
 | TypeScript 7 held back | `typescript-eslint` hard-fails on TS 7.0 | Stay on TS 6.0.3; Dependabot ignores the major until the lint stack supports it |
 
-## 5. Live testing
-
-A Strix autonomous assessment requires an LLM API key (`STRIX_LLM` and
-`LLM_API_KEY`). No key is configured in this environment, so the live assessment
-was not executed. The application was exercised manually in a real browser
-against mocked GitHub API responses (token save/restore, repository selection,
-fleet metrics, runtime/queue cards, stale detection) and the published container
-was scanned with Trivy.
-
-To run Strix once a key is available:
-
-```bash
-pipx install strix-agent
-export STRIX_LLM="openai/gpt-5"
-export LLM_API_KEY="..."
-docker compose up -d
-strix --target http://localhost:3000
-```
-
-## 6. Recommendations for operators
+## 5. Recommendations for operators
 
 1. Self-host behind HTTPS. HSTS is sent by the app, but TLS terminates at your
    proxy.

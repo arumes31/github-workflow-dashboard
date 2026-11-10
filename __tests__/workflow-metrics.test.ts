@@ -2,11 +2,6 @@ import {
   buildRepositoryMetrics,
   buildWorkflowHistories,
   estimateRemainingQueueMs,
-  formatClock,
-  formatCompactDuration,
-  formatDuration,
-  formatPercent,
-  formatRelativeTime,
   getLatestRunPerWorkflow,
   getQueueTimeMs,
   getRunOutcome,
@@ -14,6 +9,13 @@ import {
   isRunStale,
   summarizeDurations,
 } from '../src/lib/workflow-metrics';
+import {
+  formatClock,
+  formatCompactDuration,
+  formatDuration,
+  formatPercent,
+  formatRelativeTime,
+} from '../src/lib/format';
 import type { GitHubWorkflowRun } from '../src/lib/api/types';
 
 const NOW = new Date('2026-11-10T12:00:00Z').getTime();

@@ -31,6 +31,8 @@ browser talks directly to `api.github.com` and stores the token encrypted.
   `Permissions-Policy`, `nosniff`, no `X-Powered-By`.
 - **Hardened container**: multi-stage build, non-root, read-only root filesystem
   and dropped capabilities in Compose.
+- **No external assets**: all JavaScript, CSS and fonts are bundled and served
+  from the app origin; no CDN, Google Fonts or third-party script tags.
 
 ![Dashboard](docs/main-page.png)
 

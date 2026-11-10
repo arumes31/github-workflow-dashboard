@@ -45,14 +45,23 @@ Context hierarchy in `src/app/layout.tsx`:
   and rate limits.
 - `src/lib/workflow-metrics.ts` — pure timing/health calculations. Add tests here
   whenever the formulas change.
-- `src/components/workflow-stats.tsx` — fleet strip, live runtime/queue badges,
-  repository health line.
-- `src/lib/storage/secure-storage.ts` — AES-256-GCM with an HKDF key derived from
-  a random IndexedDB secret. Never persist a token in plaintext.
+- `src/lib/format.ts` — duration/relative-time formatting.
+- `src/lib/workflow-filters.ts` — status + "Only me" run filtering.
+- `src/components/workflow-dashboard.tsx` — thin orchestrator. Presentation lives
+  in `dashboard-header.tsx`, `dashboard-summary.tsx`,
+  `repository-workflow-card.tsx`, `compact-workflow-grid.tsx`,
+  `repository-row.tsx` and `workflow-stats.tsx`.
+- `src/app/settings/components/` — token, display, instructions and security
+  sections; the page only composes them.
+- `src/lib/storage/secure-storage.ts` — public encrypted storage API;
+  `storage-crypto.ts` holds the IndexedDB, HKDF and AES-256-GCM primitives.
+  Never persist a token in plaintext.
 
 ## Conventions
 
 - Prefer React text interpolation; do not add `dangerouslySetInnerHTML`.
+- Do not add CDN scripts, styles or fonts. Every asset must be bundled and served
+  from the app origin; icons come from `lucide-react`, not an external sprite.
 - Any new network host must be added to `connect-src` in `next.config.ts` and
   justified in the PR.
 - External links need `rel="noopener noreferrer"`.

@@ -7,14 +7,16 @@ import type { RepositoryWorkflows } from '@/contexts/workflow-context';
 import {
   buildRepositoryMetrics,
   estimateRemainingQueueMs,
-  formatCompactDuration,
-  formatDuration,
-  formatPercent,
   getQueueTimeMs,
   getRuntimeMs,
   isRunStale,
   type WorkflowHistory,
 } from '@/lib/workflow-metrics';
+import {
+  formatCompactDuration,
+  formatDuration,
+  formatPercent,
+} from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 const ACTIVE_STATUSES = new Set<GitHubWorkflowRun['status']>(['queued', 'waiting', 'requested', 'pending']);
