@@ -16,6 +16,10 @@
  *   arbitrary same-origin script execution.
  * - Values are bound to their storage key through AES-GCM additional data, so
  *   a ciphertext cannot be copied from one key to another.
+ *
+ * Version 1 blobs (fingerprint-derived key) are intentionally not decrypted:
+ * that scheme was publicly derivable. They are deleted so a user re-enters the
+ * token into the v2 format instead of trusting old ciphertext.
  */
 
 import {
@@ -34,15 +38,6 @@ export const STORAGE_KEYS = {
   USER_PREFERENCES: 'github_flow_dashboard_preferences',
   LAST_SYNC: 'github_flow_dashboard_last_sync',
 } as const;
-
-const LEGACY_SALT = 'github-flow-dashboard-v1';
-
-interface LegacyPayload {
-  encrypted: number[];
-  salt: number[];
-  iv: number[];
-  timestamp?: number;
-}
 
 function getLocalStorage(): Storage | null {
   try {
@@ -79,69 +74,8 @@ export async function setSecureItem(key: string, value: string): Promise<void> {
 }
 
 /**
- * Legacy v1 keys were derived from a public browser fingerprint. They are
- * transparently re-encrypted with the v2 scheme on first read.
- */
-async function decryptLegacy(key: string, payload: LegacyPayload): Promise<string> {
-  const crypto = getCrypto();
-  if (!crypto) throw new Error('Secure storage is not available');
-
-  if (
-    !Array.isArray(payload.encrypted) ||
-    !Array.isArray(payload.salt) ||
-    !Array.isArray(payload.iv)
-  ) {
-    throw new Error('Invalid legacy storage format');
-  }
-
-  const fingerprint = [
-    typeof navigator !== 'undefined' ? navigator.userAgent || 'unknown' : 'unknown',
-    typeof navigator !== 'undefined' ? navigator.language || 'unknown' : 'unknown',
-    typeof screen !== 'undefined' ? `${screen.width}x${screen.height}` : 'unknown',
-    typeof Date !== 'undefined' ? new Date().getTimezoneOffset().toString() : '0',
-    LEGACY_SALT,
-  ].join('|');
-
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(fingerprint));
-  const password = `pwd_${Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
-    .slice(0, 32)}`;
-
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(password),
-    'PBKDF2',
-    false,
-    ['deriveKey']
-  );
-  const derivedKey = await crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt: new Uint8Array(payload.salt),
-      iterations: 100000,
-      hash: 'SHA-256',
-    },
-    keyMaterial,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['decrypt']
-  );
-
-  const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: new Uint8Array(payload.iv) },
-    derivedKey,
-    new Uint8Array(payload.encrypted)
-  );
-
-  const plaintext = new TextDecoder().decode(decrypted);
-  await setSecureItem(key, plaintext);
-  return plaintext;
-}
-
-/**
  * Read and decrypt a value. Returns null when the value is missing or cannot
- * be authenticated; corrupted entries are deleted instead of being retried.
+ * be authenticated; corrupted or unsupported entries are deleted.
  */
 export async function getSecureItem(key: string): Promise<string | null> {
   const localStorage = getLocalStorage();
@@ -151,11 +85,12 @@ export async function getSecureItem(key: string): Promise<string | null> {
   if (!stored) return null;
 
   try {
-    const payload = JSON.parse(stored) as EncryptedPayload | LegacyPayload;
-    if (payload && 'v' in payload) {
-      return await decryptValue(key, payload as EncryptedPayload);
+    const payload = JSON.parse(stored) as Partial<EncryptedPayload> | null;
+    if (!payload || !('v' in payload)) {
+      localStorage.removeItem(key);
+      return null;
     }
-    return await decryptLegacy(key, payload as LegacyPayload);
+    return await decryptValue(key, payload as EncryptedPayload);
   } catch {
     localStorage.removeItem(key);
     return null;

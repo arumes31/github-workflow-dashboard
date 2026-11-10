@@ -4,7 +4,9 @@ services:
     build:
       context: .
     ports:
-      - "3000:3000"
+      # Bind to loopback by default. Put a TLS-terminating proxy in front for
+      # remote access instead of exposing the PAT UI directly.
+      - "127.0.0.1:3000:3000"
     environment:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"

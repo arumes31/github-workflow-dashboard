@@ -175,6 +175,7 @@ export function GitHubTokenProvider({ children }: GitHubTokenProviderProps) {
         removeSecureItem(STORAGE_KEYS.GITHUB_TOKEN);
         removeSecureItem(STORAGE_KEYS.GITHUB_USER_ID);
         removeSecureItem(STORAGE_KEYS.GITHUB_TOKEN_SCOPES);
+        removeSecureItem(STORAGE_KEYS.SELECTED_REPOSITORIES);
       }
       setTokenState(null);
       setUserId(null);

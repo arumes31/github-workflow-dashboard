@@ -45,7 +45,9 @@ docker compose pull
 docker compose up -d
 ```
 
-Open <http://localhost:3000>. To build locally instead:
+Open <http://localhost:3000>. Compose binds to loopback only; use a
+TLS-terminating reverse proxy if you need remote access. To build locally
+instead:
 
 ```bash
 docker compose up --build

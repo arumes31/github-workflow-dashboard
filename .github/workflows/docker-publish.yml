@@ -9,6 +9,7 @@ on:
       - "Dockerfile"
       - "docker-compose.yaml"
       - ".dockerignore"
+      - ".trivyignore"
       - "package.json"
       - "package-lock.json"
       - "next.config.ts"
@@ -25,20 +26,19 @@ env:
 
 permissions:
   contents: read
-  packages: write
-  id-token: write
-  attestations: write
 
 jobs:
-  build:
-    name: Build and publish to GHCR
+  image:
+    name: Scan, build and publish
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
 
-    outputs:
-      digest: ${{ steps.build.outputs.digest }}
-      image: ${{ steps.image.outputs.name }}
-      version: ${{ steps.meta.outputs.version }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      security-events: write
 
     steps:
       - name: Checkout
@@ -81,53 +81,25 @@ jobs:
             org.opencontainers.image.description=Dashboard for GitHub Actions workflow status, runtime and queue metrics
             org.opencontainers.image.licenses=MIT
 
-      - name: Build and push
-        id: build
+      # Build the amd64 image locally first. Nothing is published until Trivy
+      # has accepted the exact bytes that will be tagged.
+      - name: Build local scan image
         uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: workflow-monitor-scan:${{ github.run_id }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          provenance: mode=max
-          sbom: true
-          pull: true
-
-      - name: Attest build provenance
-        if: github.event_name != 'pull_request'
-        uses: actions/attest-build-provenance@v3
-        with:
-          subject-name: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}
-          subject-digest: ${{ steps.build.outputs.digest }}
-          push-to-registry: true
-
-  scan:
-    name: Scan published image
-    needs: build
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    permissions:
-      contents: read
-      packages: read
-      security-events: write
-
-    steps:
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          provenance: false
+          sbom: false
 
       - name: Scan image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ needs.build.outputs.image }}@${{ needs.build.outputs.digest }}
+          image-ref: workflow-monitor-scan:${{ github.run_id }}
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
@@ -141,3 +113,26 @@ jobs:
         with:
           sarif_file: trivy-results.sarif
           category: trivy-image
+
+      - name: Build and push multi-arch image
+        if: github.event_name != 'pull_request'
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+
+      - name: Attest build provenance
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true

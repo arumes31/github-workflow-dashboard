@@ -65,6 +65,18 @@ export function RepositorySelectionProvider({ children }: RepositorySelectionPro
   const [loadingStatus, setLoadingStatus] = useState<string | null>(null);
   const [nameFilter, setNameFilterState] = useState<string>('');
   const storageLoadedRef = useRef(false);
+  const previousUserIdRef = useRef<string | null>(null);
+
+  // Clear a previous user's repository selection when the authenticated
+  // identity changes or the token is removed.
+  useEffect(() => {
+    const previous = previousUserIdRef.current;
+    if (previous && previous !== (userId ?? null)) {
+      setSelectedRepositoriesState([]);
+      removeSecureItem(STORAGE_KEYS.SELECTED_REPOSITORIES);
+    }
+    previousUserIdRef.current = userId ?? null;
+  }, [userId]);
 
   // Load selected repositories and last organization from storage on mount
   useEffect(() => {

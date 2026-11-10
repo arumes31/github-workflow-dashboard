@@ -30,51 +30,6 @@ function storageDump(): string {
   return JSON.stringify(dump);
 }
 
-async function buildLegacyPayload(key: string, value: string) {
-  const fingerprint = [
-    navigator.userAgent || 'unknown',
-    navigator.language || 'unknown',
-    `${screen.width}x${screen.height}`,
-    new Date().getTimezoneOffset().toString(),
-    'github-flow-dashboard-v1',
-  ].join('|');
-
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(fingerprint));
-  const password = `pwd_${Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-    .slice(0, 32)}`;
-
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(password),
-    'PBKDF2',
-    false,
-    ['deriveKey']
-  );
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const derivedKey = await crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
-    keyMaterial,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt']
-  );
-  const encrypted = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
-    derivedKey,
-    new TextEncoder().encode(value)
-  );
-
-  return {
-    encrypted: Array.from(new Uint8Array(encrypted)),
-    salt: Array.from(salt),
-    iv: Array.from(iv),
-    timestamp: Date.now(),
-  };
-}
-
 describe('secure storage', () => {
   beforeEach(async () => {
     await resetDatabases();
@@ -141,18 +96,7 @@ describe('secure storage', () => {
     expect(localStorage.getItem(STORAGE_KEYS.GITHUB_TOKEN)).toBeNull();
   });
 
-  it('migrates legacy fingerprint-encrypted values to the v2 format', async () => {
-    const legacy = await buildLegacyPayload(STORAGE_KEYS.GITHUB_TOKEN, TOKEN);
-    localStorage.setItem(STORAGE_KEYS.GITHUB_TOKEN, JSON.stringify(legacy));
-
-    await expect(getSecureItem(STORAGE_KEYS.GITHUB_TOKEN)).resolves.toBe(TOKEN);
-
-    const migrated = JSON.parse(localStorage.getItem(STORAGE_KEYS.GITHUB_TOKEN) as string);
-    expect(migrated.v).toBe(2);
-    expect(migrated.encrypted).toBeUndefined();
-  });
-
-  it('deletes values that cannot be decrypted', async () => {
+  it('deletes legacy fingerprint-encrypted values instead of decrypting them', async () => {
     localStorage.setItem(
       STORAGE_KEYS.GITHUB_TOKEN,
       JSON.stringify({ encrypted: [1, 2, 3], salt: [1], iv: [1] })

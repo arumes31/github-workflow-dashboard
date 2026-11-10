@@ -24,7 +24,7 @@
 | F-09 | Medium | No CI security controls or reproducible builds | Fixed — CI, CodeQL, dependency review, Gitleaks, Scorecard, Trivy, SBOM |
 | F-10 | Low | Stored repository JSON trusted without shape validation | Fixed — validated before use |
 | F-11 | Low | Stored display settings trusted without validation | Fixed — sanitised and length-limited |
-| F-12 | Low | Test suite was entirely red, so regressions were invisible | Fixed — 72 tests, lint, typecheck and build are green |
+| F-12 | Low | Test suite was entirely red, so regressions were invisible | Fixed — 71 tests, lint, typecheck and build are green |
 | F-13 | Info | Client-only architecture has no server-side token store | Accepted — no backend to compromise |
 | F-14 | Low | Theme and last-org preferences stored in plain localStorage | Accepted — non-sensitive data |
 
@@ -62,12 +62,13 @@ almost no protection against a shared-computer or backup-then-dump scenario.
 3. Uses a fresh 12-byte IV per write and binds the ciphertext to its storage key
    through AES-GCM additional authenticated data, so blobs cannot be swapped
    between keys.
-4. Migrates legacy v1 ciphertext on first read and deletes anything that fails
-   authentication.
+4. Deletes legacy v1 ciphertext on first read instead of decrypting it; that
+   scheme was derivable from public browser attributes. Users re-enter the token
+   once into the v2 format.
 5. Keeps the token in memory only when encrypted persistence is unavailable.
 
 Tests cover round-trip, no plaintext in localStorage, unique IVs, key binding,
-tamper detection, malformed payloads, legacy migration and clearing.
+tamper detection, malformed payloads, legacy rejection and clearing.
 
 **Residual risk:** same-origin script execution (XSS) can still call the decrypt
 function. No browser-only scheme prevents that; the CSP, the absence of
@@ -182,7 +183,7 @@ most were standalone console scripts that called `process.exit`. Every suite
 failed, `tsc --noEmit` failed, and CI could never have been green.
 
 **Fix:** removed the fake suites, replaced them with five real suites
-(72 tests), and configured Jest to collect only `*.test.ts(x)`. Lint, typecheck,
+(71 tests), and configured Jest to collect only `*.test.ts(x)`. Lint, typecheck,
 tests and the production build now pass from a clean Linux install.
 
 ## 3. Verification performed
@@ -193,7 +194,7 @@ found 0 vulnerabilities
 
 $ npm run lint && npm run typecheck && npm test -- --ci
 Test Suites: 5 passed, 5 total
-Tests:       72 passed, 72 total
+Tests:       71 passed, 71 total
 
 $ npm run build
 ✓ Compiled successfully
@@ -228,7 +229,28 @@ A source scan confirms there are no external CSS, JavaScript or font URLs:
 Tailwind, React, Radix, Lucide and all fonts are bundled and served from the app
 origin. The only outbound runtime connection is `https://api.github.com`.
 
-## 4. Residual risks and accepted trade-offs
+## 4. Independent Cloudflare skill audit
+
+A second pass used the Cloudflare `security-audit-skill` at commit `6c1d21e`
+(standard profile, 19 coverage units). Validators reported `PASS: 19 coverage
+units valid` and `PASS: 14 findings valid`. Artifacts are outside the repository
+at `~/security-audit-skill/github-workflow-dashboard/run-1/` (Windows:
+`C:\Users\DRFACE\security-audit-skill\github-workflow-dashboard\run-1`).
+
+| Result | Finding | Status in this branch |
+| --- | --- | --- |
+| Medium | Legacy v1 token blobs could be decrypted from public browser attributes | Fixed: v1 blobs are deleted, never decrypted |
+| Low | Removing the token left `SELECTED_REPOSITORIES` readable and in memory | Fixed: the key is removed and selection is cleared on identity change |
+| Low | Workflow actions use mutable tags; build job has package/attestation write | Accepted: Dependabot updates Actions; add SHA pinning if the repo becomes high-value |
+| Low | Trivy scanned after push and lacked `.trivyignore` in its workspace | Fixed: one job scans the exact local image before any push |
+| Needs validation | Compose exposed the PAT UI on all interfaces over plain HTTP | Mitigated: Compose now binds `127.0.0.1`; TLS remains a deployment responsibility |
+| Needs validation | Six Next.js-vendored advisories are suppressed with an expiry | Accepted with expiry in `.trivyignore`; re-check each Next.js upgrade |
+
+Rejected candidates: owner/repo path traversal, `pull_request_target` execution,
+CSP `unsafe-inline` XSS, prototype pollution via stored JSON, `javascript:` URL
+XSS, container root, metrics divide-by-zero, plaintext token in localStorage.
+
+## 5. Residual risks and accepted trade-offs
 
 | Risk | Why it remains | Mitigation |
 | --- | --- | --- |
@@ -241,7 +263,7 @@ origin. The only outbound runtime connection is `https://api.github.com`.
 | Next.js vendored undici/brace-expansion advisories | Cannot be patched outside Next.js | Ignored with expiry in `.trivyignore`; re-check on every Next.js upgrade |
 | TypeScript 7 held back | `typescript-eslint` hard-fails on TS 7.0 | Stay on TS 6.0.3; Dependabot ignores the major until the lint stack supports it |
 
-## 5. Recommendations for operators
+## 6. Recommendations for operators
 
 1. Self-host behind HTTPS. HSTS is sent by the app, but TLS terminates at your
    proxy.
