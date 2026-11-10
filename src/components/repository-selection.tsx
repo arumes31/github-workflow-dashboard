@@ -33,7 +33,7 @@ const getWorkflowStatusInfo = (status: WorkflowStatus, workflowCount?: number) =
     case 'has-workflows':
       return {
         icon: <Check className="w-4 h-4 text-green-500 dark:text-green-400" />,
-        text: workflowCount ? `${workflowCount} workflow${workflowCount === 1 ? '' : 's'}` : 'Has workflows',
+        text: workflowCount ? `${workflowCount.toLocaleString()} runs` : 'Has workflows',
         className: 'text-green-600 dark:text-green-400',
         selectable: true
       };
@@ -380,6 +380,7 @@ export function RepositorySelection({ onSelectionChange }: RepositorySelectionPr
                         checked={isSelected}
                         disabled={!isSelectable}
                         onCheckedChange={() => isSelectable && handleRepositoryToggle(repository)}
+                        onClick={(event) => event.stopPropagation()}
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -402,11 +403,6 @@ export function RepositorySelection({ onSelectionChange }: RepositorySelectionPr
                             <span className={cn("text-xs", statusInfo.className)}>
                               {statusInfo.text}
                             </span>
-                            {repository.workflowCount !== undefined && repository.workflowCount > 0 && (
-                              <Badge variant="outline" className="text-xs ml-1">
-                                {repository.workflowCount} workflow{repository.workflowCount > 1 ? 's' : ''}
-                              </Badge>
-                            )}
                           </div>
                         </div>
                         {repository.description && (

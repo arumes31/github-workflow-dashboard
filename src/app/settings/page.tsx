@@ -13,7 +13,8 @@ import { useTheme } from '@/contexts/theme-context';
 import { useDisplaySettings, REFRESH_INTERVALS } from '@/contexts/display-settings-context';
 import { Badge } from '@/components/ui/badge';
 import { RepositorySelection } from '@/components/repository-selection';
-import { Moon, Sun, Monitor, Zap } from 'lucide-react';
+import { findExcessiveScopes } from '@/lib/api/token-validation';
+import { AlertTriangle, Moon, Sun, Monitor, Zap, ShieldCheck } from 'lucide-react';
 
 export default function SettingsPage() {
   const {
@@ -23,7 +24,9 @@ export default function SettingsPage() {
     error,
     setToken,
     removeToken,
-    isSecureStorageSupported
+    isSecureStorageSupported,
+    scopes,
+    rateLimit
   } = useGitHubToken();
   
   const { theme, toggleTheme } = useTheme();
@@ -32,6 +35,7 @@ export default function SettingsPage() {
   const [tokenInput, setTokenInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dashboardNameInput, setDashboardNameInput] = useState(settings.dashboardName);
+  const excessiveScopes = findExcessiveScopes(scopes);
 
   const handleTokenSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,11 +69,9 @@ export default function SettingsPage() {
             <h1 className="text-3xl font-bold text-foreground">Settings</h1>
             <p className="text-muted-foreground mt-1">Configure your GitHub token and preferences</p>
           </div>
-          <Link href="/">
-            <Button variant="outline">
-              ← Back to Dashboard
-            </Button>
-          </Link>
+          <Button variant="outline" asChild>
+            <Link href="/">← Back to Dashboard</Link>
+          </Button>
         </div>
 
         <div className="grid gap-6 max-w-2xl">
@@ -135,10 +137,11 @@ export default function SettingsPage() {
                   <div>
                     <Label>Current Token</Label>
                     <div className="flex items-center gap-2 mt-1">
-                      <Input 
-                        type="password" 
-                        value={token.slice(0, 8) + '••••••••'} 
-                        readOnly 
+                      <Input
+                        type="password"
+                        value="••••••••••••••••"
+                        readOnly
+                        aria-label="Stored GitHub token (hidden)"
                         className="flex-1"
                       />
                       <Button
@@ -149,18 +152,67 @@ export default function SettingsPage() {
                         Remove
                       </Button>
                     </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      The token is never displayed again. It is encrypted with AES-256-GCM and a
+                      random per-browser key stored in IndexedDB.
+                    </p>
                   </div>
-                  
+
+                  {(scopes.length > 0 || rateLimit) && (
+                    <div className="rounded-md border bg-muted/30 p-3 text-xs">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-emerald-600" aria-hidden="true" />
+                        <span className="font-medium">Token permissions</span>
+                        {scopes.length > 0 ? (
+                          scopes.map((scope) => (
+                            <Badge key={scope} variant="outline" className="text-[11px]">
+                              {scope}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-muted-foreground">
+                            Fine-grained token (scopes are managed per repository)
+                          </span>
+                        )}
+                      </div>
+                      {rateLimit && rateLimit.limit > 0 && (
+                        <p className="mt-2 text-muted-foreground">
+                          GitHub API quota: {rateLimit.remaining.toLocaleString()} of{' '}
+                          {rateLimit.limit.toLocaleString()} requests remaining
+                          {rateLimit.reset > 0 &&
+                            ` · resets ${new Date(rateLimit.reset * 1000).toLocaleTimeString()}`}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {excessiveScopes.length > 0 && (
+                    <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" aria-hidden="true" />
+                      <div>
+                        <p className="font-medium text-amber-800 dark:text-amber-200">
+                          This token has more access than the dashboard needs
+                        </p>
+                        <p className="text-xs text-amber-700 dark:text-amber-300">
+                          Remove {excessiveScopes.join(', ')} and use a read-only token scoped to the
+                          repositories you monitor.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="pt-4 border-t">
                     <Label>Update Token</Label>
                     <form onSubmit={handleTokenSubmit} className="mt-2">
                       <div className="flex gap-2">
                         <Input
                           type="password"
-                          placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                          placeholder="github_pat_… or ghp_…"
                           value={tokenInput}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTokenInput(e.target.value)}
                           disabled={isSubmitting}
+                          autoComplete="off"
+                          spellCheck={false}
                           className="flex-1"
                         />
                         <Button 
@@ -188,7 +240,9 @@ export default function SettingsPage() {
                         className="mt-1"
                       />
                       <p className="text-sm text-muted-foreground mt-1">
-                        Required scopes: <code className="bg-muted px-1 rounded">repo</code>, <code className="bg-muted px-1 rounded">actions:read</code>
+                        Recommended: fine-grained token with <code className="bg-muted px-1 rounded">Actions: Read</code>,{' '}
+                        <code className="bg-muted px-1 rounded">Contents: Read</code> and{' '}
+                        <code className="bg-muted px-1 rounded">Metadata: Read</code>.
                       </p>
                     </div>
                     
@@ -337,16 +391,19 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 {/* Required Permissions Summary */}
                 <div className="space-y-2">
-                  <h4 className="text-sm font-semibold text-foreground">Required Permissions:</h4>
+                  <h4 className="text-sm font-semibold text-foreground">Required Permissions (fine-grained token):</h4>
                   <div className="flex flex-wrap gap-2">
                     <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 px-2 py-1 rounded">
-                      <code>repo</code> - Repository access
+                      <code>Actions</code> - Read
                     </span>
                     <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
-                      <code>actions:read</code> - Workflow access
+                      <code>Contents</code> - Read
+                    </span>
+                    <span className="text-xs bg-slate-100 dark:bg-slate-800/50 text-slate-800 dark:text-slate-200 px-2 py-1 rounded">
+                      <code>Metadata</code> - Read (automatic)
                     </span>
                     <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 px-2 py-1 rounded">
-                      <code>read:org</code> - Organization access (optional)
+                      <code>read:org</code> - only if you monitor organizations
                     </span>
                   </div>
                 </div>
@@ -377,8 +434,7 @@ export default function SettingsPage() {
                         <li>2. Click &quot;Generate new token&quot; → &quot;Generate new token (classic)&quot;</li>
                         <li>3. Set an expiration date and note</li>
                         <li>4. Select these scopes:</li>
-                        <li className="ml-4">• <strong>repo</strong> (Full control of private repositories)</li>
-                        <li className="ml-4">• <strong>workflow</strong> (Update GitHub Action workflows) - <em>includes actions:read</em></li>
+                        <li className="ml-4">• <strong>repo</strong> (read access to private repositories; use <strong>public_repo</strong> if you only monitor public ones)</li>
                         <li className="ml-4">• <strong>read:org</strong> (Read organization membership) - <em>for organization access</em></li>
                         <li>5. Generate and copy your token immediately</li>
                       </ol>
@@ -393,7 +449,7 @@ export default function SettingsPage() {
                     <li>• Limit access to only the repositories you need to monitor</li>
                     <li>• Set reasonable expiration dates and rotate tokens regularly</li>
                     <li>• Never share your token or commit it to version control</li>
-                    <li>• Store tokens securely using your browser&apos;s credential manager when available</li>
+                    <li>• This app encrypts tokens with AES-256-GCM; the key stays in IndexedDB, never in localStorage</li>
                   </ul>
                 </div>
                 
@@ -411,6 +467,45 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Security model */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5" />
+                Security &amp; Privacy
+              </CardTitle>
+              <CardDescription>
+                The dashboard is client-only: no backend ever receives your token.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <p>
+                The token is encrypted with AES-256-GCM using a random per-browser key kept in
+                IndexedDB. Only ciphertext is written to localStorage.
+              </p>
+              <p>
+                GitHub API requests go directly from this browser to{' '}
+                <code className="bg-muted px-1 rounded">api.github.com</code>. Workflow data and
+                selections stay on this device.
+              </p>
+              <p>
+                Use <strong>Remove</strong> above before using a shared computer. Residual risk: any
+                script running on this origin could use the key, so keep the app self-hosted and
+                up to date.
+              </p>
+              <p>
+                <a
+                  href="https://github.com/arumes31/github-workflow-dashboard/blob/main/docs/SECURITY-AUDIT.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline"
+                >
+                  Read the security audit and residual risks →
+                </a>
+              </p>
             </CardContent>
           </Card>
         </div>

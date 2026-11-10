@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -12,6 +13,8 @@ import { useGitHubToken } from '@/contexts/github-token-context';
 import { useDisplaySettings, REFRESH_INTERVALS } from '@/contexts/display-settings-context';
 import { useTheme } from '@/contexts/theme-context';
 import { GitHubWorkflowRun } from '@/lib/api/types';
+import { formatRelativeTime } from '@/lib/workflow-metrics';
+import { FleetMetrics, RunTiming, RepositoryHealth } from '@/components/workflow-stats';
 import { RefreshCw, Clock, CheckCircle, XCircle, AlertCircle, Loader, ExternalLink, Moon, Sun, Monitor, Settings, ZoomIn, ZoomOut } from 'lucide-react';
 
 interface WorkflowStatusBadgeProps {
@@ -88,20 +91,11 @@ function WorkflowStatusBadge({ status, conclusion }: WorkflowStatusBadgeProps) {
 }
 
 function formatTimeAgo(dateString: string): string {
-  const now = new Date();
-  const date = new Date(dateString);
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${diffDays}d ago`;
+  return formatRelativeTime(dateString);
 }
 
 export function WorkflowDashboard() {
+  const router = useRouter();
   const { token, isValidated, userId } = useGitHubToken();
   const { selectedRepositories } = useRepositorySelection();
   const { settings, toggleCompactMode, setRefreshInterval } = useDisplaySettings();
@@ -111,6 +105,7 @@ export function WorkflowDashboard() {
     isLoading, 
     error, 
     lastGlobalUpdate, 
+    rateLimit,
     refreshWorkflows, 
     refreshRepository,
   } = useWorkflow();
@@ -134,7 +129,7 @@ export function WorkflowDashboard() {
       // S key to go to settings
       if (event.key === 's' && !['INPUT', 'SELECT', 'TEXTAREA'].includes((event.target as HTMLElement)?.tagName)) {
         event.preventDefault();
-        window.location.href = '/settings';
+        router.push('/settings');
       }
       
       // Z key to toggle compact mode
@@ -146,7 +141,7 @@ export function WorkflowDashboard() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [refreshWorkflows, toggleCompactMode]);
+  }, [refreshWorkflows, toggleCompactMode, router]);
 
   // Show setup message if no token
   if (!token || !isValidated) {
@@ -160,7 +155,7 @@ export function WorkflowDashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <Button onClick={() => window.location.href = '/settings'}>
+            <Button onClick={() => router.push('/settings')}>
               Go to Settings
             </Button>
           </CardContent>
@@ -184,7 +179,7 @@ export function WorkflowDashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            <Button onClick={() => window.location.href = '/settings'} className="w-full">
+            <Button onClick={() => router.push('/settings')} className="w-full">
               Select Repositories
             </Button>
             <p className="text-xs text-muted-foreground text-center">
@@ -200,8 +195,8 @@ export function WorkflowDashboard() {
   const matchesOnlyMeFilter = (workflow: GitHubWorkflowRun) => {
     if (!onlyMe || !userId) return true;
     const actor = workflow.actor?.login || '';
-    const commitAuthor = (workflow.head_commit && (workflow.head_commit.author?.name || workflow.head_commit.author?.email)) || '';
-    return actor === userId || commitAuthor === userId;
+    const triggeringActor = workflow.triggering_actor?.login || '';
+    return actor === userId || triggeringActor === userId;
   };
 
   const totalWorkflows = repositoryWorkflows.reduce((sum, rw) => {
@@ -380,8 +375,8 @@ export function WorkflowDashboard() {
     if (onlyMe && userId) {
       filteredWorkflows = filteredWorkflows.filter(workflow => {
         const actor = workflow.actor?.login || '';
-        const commitAuthor = (workflow.head_commit && (workflow.head_commit.author?.name || workflow.head_commit.author?.email)) || '';
-        return actor === userId || commitAuthor === userId;
+        const triggeringActor = workflow.triggering_actor?.login || '';
+        return actor === userId || triggeringActor === userId;
       });
     }
     
@@ -412,10 +407,10 @@ export function WorkflowDashboard() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">{settings.dashboardName}</h1>
           <p className="text-muted-foreground text-sm sm:text-base mt-1">
-            Monitoring {repositoryWorkflows.length} {activeFilter ? `of ${totalRepoCount}` : ''} repositories
+            Monitoring {totalRepoCount} {totalRepoCount === 1 ? 'repository' : 'repositories'} · {totalWorkflows} active {totalWorkflows === 1 ? 'workflow' : 'workflows'}
             {activeFilter && (
               <span className="ml-2 px-2 py-1 bg-primary/10 text-primary rounded-md text-xs font-medium">
-                Filtered by: {activeFilter}
+                Filtered by: {activeFilter.replace(/_/g, ' ')}
               </span>
             )}
             {lastGlobalUpdate && (
@@ -518,7 +513,7 @@ export function WorkflowDashboard() {
             
             {/* Settings */}
             <Button 
-              onClick={() => window.location.href = '/settings'}
+              onClick={() => router.push('/settings')}
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0"
@@ -573,7 +568,7 @@ export function WorkflowDashboard() {
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <p className="text-sm sm:text-base font-bold text-white/90 capitalize mb-1 tracking-wide">
-                        {card.label}
+                        {card.label.replace(/_/g, ' ')}
                       </p>
                       <p className="text-2xl sm:text-3xl lg:text-4xl font-black text-white drop-shadow-lg">
                         {card.count}
@@ -591,6 +586,9 @@ export function WorkflowDashboard() {
           );
         })}
       </div>
+
+      {/* Fleet timing and health */}
+      <FleetMetrics repositories={repositoryWorkflows} rateLimit={rateLimit} />
 
       {/* Global error */}
       {error && (
@@ -624,7 +622,8 @@ export function WorkflowDashboard() {
                   ...workflow,
                   repositoryName: `${repositoryWorkflow.repository.owner.login}/${repositoryWorkflow.repository.name}`,
                   repositoryOwner: repositoryWorkflow.repository.owner.login,
-                  repositoryUrl: repositoryWorkflow.repository.html_url
+                  repositoryUrl: repositoryWorkflow.repository.html_url,
+                  workflowHistory: repositoryWorkflow.histories.get(workflow.workflow_id),
                 }))
               )
               .map((workflow) => {
@@ -684,6 +683,8 @@ export function WorkflowDashboard() {
                       <span>•</span>
                       <span>{formatTimeAgo(workflow.updated_at)}</span>
                     </div>
+
+                    <RunTiming run={workflow} history={workflow.workflowHistory} compact />
                   </div>
                 );
               })
@@ -726,6 +727,7 @@ export function WorkflowDashboard() {
                       {repositoryWorkflow.repository.description || 'No description'}
                     </CardDescription>
                   )}
+                  <RepositoryHealth metrics={repositoryWorkflow.metrics} />
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {/* Removed 'Updated ...' label to prevent header squishing and button overflow */}
@@ -817,6 +819,13 @@ export function WorkflowDashboard() {
                           <span>on {workflow.head_branch}</span>
                           {!settings.compactMode && <span>by {workflow.actor.login}</span>}
                           <span>{formatTimeAgo(workflow.updated_at)}</span>
+                        </div>
+                        <div className="mt-1.5">
+                          <RunTiming
+                            run={workflow}
+                            history={repositoryWorkflow.histories.get(workflow.workflow_id)}
+                            compact={settings.compactMode}
+                          />
                         </div>
                         {!settings.compactMode && (
                           <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-1 sm:line-clamp-2">
