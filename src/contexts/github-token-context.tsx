@@ -70,6 +70,22 @@ export function GitHubTokenProvider({ children }: GitHubTokenProviderProps) {
       setIsSecureStorageSupported(available);
 
       if (!available) {
+        // The server-side account store can still provide a token even when
+        // browser storage is unavailable.
+        try {
+          const response = await fetch('/api/auth/token', { credentials: 'same-origin' });
+          if (response.ok) {
+            const data = (await response.json()) as { token: string | null };
+            if (data.token) {
+              setTokenState(data.token);
+              const validation = await validateGitHubToken(data.token);
+              setIsValidated(validation.isValid);
+              if (validation.user?.login) setUserId(validation.user.login);
+            }
+          }
+        } catch {
+          // Ignore; the user can sign in and add a token.
+        }
         setIsLoading(false);
         return;
       }
@@ -82,12 +98,25 @@ export function GitHubTokenProvider({ children }: GitHubTokenProviderProps) {
         ]);
         if (cancelled) return;
 
-        if (!storedToken) {
+        let serverToken: string | null = null;
+        try {
+          const response = await fetch('/api/auth/token', { credentials: 'same-origin' });
+          if (response.ok) {
+            const data = (await response.json()) as { token: string | null };
+            serverToken = data.token;
+          }
+        } catch {
+          // Fall back to local storage below.
+        }
+        if (cancelled) return;
+
+        const candidate = serverToken || storedToken;
+        if (!candidate) {
           setIsLoading(false);
           return;
         }
 
-        setTokenState(storedToken);
+        setTokenState(candidate);
         if (storedUserId) setUserId(storedUserId);
         if (storedScopes) {
           try {
@@ -98,7 +127,7 @@ export function GitHubTokenProvider({ children }: GitHubTokenProviderProps) {
           }
         }
 
-        const validation = await validateGitHubToken(storedToken);
+        const validation = await validateGitHubToken(candidate);
         if (cancelled) return;
 
         setIsValidated(validation.isValid);
@@ -113,6 +142,15 @@ export function GitHubTokenProvider({ children }: GitHubTokenProviderProps) {
           if (validation.user?.login) {
             setUserId(validation.user.login);
             await persist(STORAGE_KEYS.GITHUB_USER_ID, validation.user.login, available);
+          }
+          // Migrate a locally stored token into the signed-in account once.
+          if (!serverToken && storedToken) {
+            await fetch('/api/auth/token', {
+              method: 'PUT',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token: storedToken }),
+            }).catch(() => undefined);
           }
         }
       } catch {
@@ -154,6 +192,16 @@ export function GitHubTokenProvider({ children }: GitHubTokenProviderProps) {
         }
         if (validation.rateLimit) setRateLimit(validation.rateLimit);
 
+        const saved = await fetch('/api/auth/token', {
+          method: 'PUT',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: newToken }),
+        });
+        if (!saved.ok) {
+          throw new Error('Token validated but could not be saved to your account.');
+        }
+
         setTokenState(newToken);
         setIsValidated(true);
       } catch (err) {
@@ -171,6 +219,10 @@ export function GitHubTokenProvider({ children }: GitHubTokenProviderProps) {
     setError(null);
 
     try {
+      await fetch('/api/auth/token', {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      }).catch(() => undefined);
       if (isSecureStorageSupported) {
         removeSecureItem(STORAGE_KEYS.GITHUB_TOKEN);
         removeSecureItem(STORAGE_KEYS.GITHUB_USER_ID);

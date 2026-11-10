@@ -3,8 +3,9 @@
 A self-hosted dashboard for GitHub Actions: current status, **runtime**, **queue
 time**, pass rate and stale-run detection across every repository you monitor.
 
-It is a client-only Next.js app. Your GitHub token never touches a backend — the
-browser talks directly to `api.github.com` and stores the token encrypted.
+It is a Next.js app with a small local account service. The browser talks directly
+to `api.github.com`; the token is encrypted at rest both in the browser and in the
+server-side user store.
 
 [![CI](https://github.com/arumes31/github-workflow-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/arumes31/github-workflow-dashboard/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/arumes31/github-workflow-dashboard/actions/workflows/codeql.yml/badge.svg)](https://github.com/arumes31/github-workflow-dashboard/actions/workflows/codeql.yml)
@@ -33,8 +34,13 @@ browser talks directly to `api.github.com` and stores the token encrypted.
 - **Token handling**: AES-256-GCM encryption, random per-browser key in
   IndexedDB, token masked after saving, scope/quota display and warnings for
   over-privileged tokens.
+- **Accounts**: first sign-in is `admin` / `changeme` with a forced password
+  change; admins can create more users; each account's GitHub token is encrypted
+  on the server so it survives sign-out and browser changes.
 - **Security headers**: CSP, HSTS, `X-Frame-Options: DENY`, COOP/CORP,
   `Permissions-Policy`, `nosniff`, no `X-Powered-By`.
+- **Plain-HTTP warning**: a banner appears when the UI is opened over HTTP but the
+  dashboard still loads and works, so a reverse proxy can terminate TLS.
 - **Hardened container**: multi-stage build, non-root, read-only root filesystem
   and dropped capabilities in Compose.
 - **No external assets**: all JavaScript, CSS and fonts are bundled and served
@@ -51,9 +57,11 @@ docker compose pull
 docker compose up -d
 ```
 
-Open <http://localhost:3000>. Compose binds to loopback only; use a
-TLS-terminating reverse proxy if you need remote access. To build locally
-instead:
+Open <http://localhost:3000>. Compose binds `0.0.0.0:3000` for a
+TLS-terminating reverse proxy; do not expose it directly to the internet.
+Compose persists the user database and encryption key in `./.data` and the Next
+cache in `./.next-cache`; override `DATA_DIR` / `NEXT_CACHE_DIR` for another
+path. To build locally instead:
 
 ```bash
 docker compose up --build
@@ -88,7 +96,41 @@ npm run build
 npm start
 ```
 
+### Operations
+
+The container exposes a small health endpoint and structured JSON logs:
+
+```bash
+docker compose logs -f --tail=100
+curl -s http://127.0.0.1:3000/api/health
+```
+
+Log lines are `startup`, `request` (method, path, forwarded proto, request id)
+and `request_error`. `APP_VERSION` and `GIT_COMMIT` are baked in at image build
+time and returned by the health endpoint. Static assets and health checks are
+excluded from the access log.
+
+The Compose port is bound to `0.0.0.0:3000` for a TLS reverse proxy. Point the
+proxy at `http://<host>:3000`; the app itself still detects the browser protocol
+and shows the HTTP warning when the proxy is missing.
+
 ## Configuration
+
+### Accounts
+
+The first sign-in uses **`admin` / `changeme`** and immediately forces a password
+change. After that, open **Settings → Users** to create additional accounts; each
+new user also changes their password at first sign-in.
+
+Each account stores its GitHub token encrypted on the server
+(`data/users.json`, AES-256-GCM with `data/server.key`). Signing out and back in,
+or switching accounts, restores that user's token. Back up the `data` directory;
+without `server.key` the stored tokens cannot be decrypted.
+
+Set `APP_SECRET` to a stable random value to derive the encryption/session key
+from the environment instead of the generated key file.
+
+### GitHub token
 
 Open **Settings** and add a GitHub token.
 

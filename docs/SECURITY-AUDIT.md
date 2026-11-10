@@ -24,8 +24,8 @@
 | F-09 | Medium | No CI security controls or reproducible builds | Fixed — CI, CodeQL, dependency review, Gitleaks, Scorecard, Trivy, SBOM |
 | F-10 | Low | Stored repository JSON trusted without shape validation | Fixed — validated before use |
 | F-11 | Low | Stored display settings trusted without validation | Fixed — sanitised and length-limited |
-| F-12 | Low | Test suite was entirely red, so regressions were invisible | Fixed — 80 tests, lint, typecheck and build are green |
-| F-13 | Info | Client-only architecture has no server-side token store | Accepted — no backend to compromise |
+| F-12 | Low | Test suite was entirely red, so regressions were invisible | Fixed — 86 tests, lint, typecheck and build are green |
+| F-13 | Info | Client-only architecture had no server-side token store | Superseded — local account service with encrypted per-user token store added |
 | F-14 | Low | Theme and last-org preferences stored in plain localStorage | Accepted — non-sensitive data |
 
 Production dependency audit after the upgrade:
@@ -83,7 +83,9 @@ permissions policy, and exposed `X-Powered-By`.
 
 - `Content-Security-Policy` with `default-src 'self'`, `connect-src 'self'
   https://api.github.com`, `object-src 'none'`, `frame-ancestors 'none'`,
-  `base-uri 'self'`, `form-action 'self'` and `upgrade-insecure-requests`.
+  `base-uri 'self'` and `form-action 'self'`. `upgrade-insecure-requests` is
+  deliberately omitted so the HTTP warning page can load its assets; mixed
+  content is still blocked by the browser on HTTPS.
 - `Strict-Transport-Security` in production.
 - `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
   `Referrer-Policy: strict-origin-when-cross-origin`,
@@ -183,7 +185,7 @@ most were standalone console scripts that called `process.exit`. Every suite
 failed, `tsc --noEmit` failed, and CI could never have been green.
 
 **Fix:** removed the fake suites, replaced them with five real suites
-(80 tests), and configured Jest to collect only `*.test.ts(x)`. Lint, typecheck,
+(86 tests), and configured Jest to collect only `*.test.ts(x)`. Lint, typecheck,
 tests and the production build now pass from a clean Linux install.
 
 ## 3. Verification performed
@@ -194,7 +196,7 @@ found 0 vulnerabilities
 
 $ npm run lint && npm run typecheck && npm test -- --ci
 Test Suites: 5 passed, 5 total
-Tests:       80 passed, 80 total
+Tests:       86 passed, 86 total
 
 $ npm run build
 ✓ Compiled successfully
@@ -250,7 +252,29 @@ Rejected candidates: owner/repo path traversal, `pull_request_target` execution,
 CSP `unsafe-inline` XSS, prototype pollution via stored JSON, `javascript:` URL
 XSS, container root, metrics divide-by-zero, plaintext token in localStorage.
 
-## 5. Residual risks and accepted trade-offs
+## 5. Authentication layer (post-audit)
+
+The dashboard now has a local account service:
+
+- First sign-in is `admin` / `changeme`; a new password is forced before the
+  dashboard or token endpoints become available.
+- Passwords use scrypt with a random 16-byte salt. Login is rate-limited per
+  IP/username and requires HTTPS (localhost excepted).
+- Sessions use an HMAC-signed, HttpOnly, SameSite=Lax cookie. Mutating endpoints
+  also check the request origin.
+- Each user's GitHub token is encrypted with AES-256-GCM (AAD bound to the user
+  id) in `data/users.json`; the key is `data/server.key` or `APP_SECRET`.
+- Admins can create users in Settings; new users change their password on first
+  sign-in.
+- `DATA_DIR` must be a persistent, private volume. Back up `users.json` **and**
+  `server.key`; losing the key loses the stored tokens. The file and key are
+  created mode `0600`.
+
+Residual: there is no email password reset, and changing a password does not
+invalidate other already-issued stateless session cookies (they expire after
+seven days).
+
+## 6. Residual risks and accepted trade-offs
 
 | Risk | Why it remains | Mitigation |
 | --- | --- | --- |
@@ -263,7 +287,7 @@ XSS, container root, metrics divide-by-zero, plaintext token in localStorage.
 | Next.js vendored undici/brace-expansion advisories | Cannot be patched outside Next.js | Ignored with expiry in `.trivyignore`; re-check on every Next.js upgrade |
 | TypeScript 7 held back | `typescript-eslint` hard-fails on TS 7.0 | Stay on TS 6.0.3; Dependabot ignores the major until the lint stack supports it |
 
-## 6. Recommendations for operators
+## 7. Recommendations for operators
 
 1. Self-host behind HTTPS. HSTS is sent by the app, but TLS terminates at your
    proxy.

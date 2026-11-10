@@ -11,7 +11,7 @@ import { mapWithConcurrency } from '@/lib/concurrency';
 import { formatCompactDuration } from '@/lib/format';
 import { Loader, RefreshCw, Users, XCircle } from 'lucide-react';
 
-const MAX_RUNS = 10;
+const MAX_RUNS = 25;
 const CONCURRENCY = 3;
 
 interface ActiveRun {
@@ -32,22 +32,27 @@ interface RunnerRow {
 }
 
 function activeRuns(repositories: RepositoryWorkflows[]): ActiveRun[] {
-  const runs: ActiveRun[] = [];
+  const running: ActiveRun[] = [];
+  const queued: ActiveRun[] = [];
+
   for (const entry of repositories) {
     const [owner, repo] = entry.repository.full_name.split('/');
     for (const run of entry.workflows) {
       if (run.status !== 'in_progress' && run.status !== 'queued' && run.status !== 'waiting') continue;
-      runs.push({
+      const item = {
         repositoryName: entry.repository.full_name,
         workflowName: run.name,
         owner,
         repo,
         runId: run.id,
-      });
-      if (runs.length >= MAX_RUNS) return runs;
+      };
+      if (run.status === 'in_progress') running.push(item);
+      else queued.push(item);
     }
   }
-  return runs;
+
+  // Running jobs must be visible even when many runs are queued.
+  return [...running, ...queued].slice(0, MAX_RUNS);
 }
 
 function runnerLabel(job: GitHubWorkflowJob): string {

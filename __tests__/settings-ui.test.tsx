@@ -28,6 +28,24 @@ jest.mock('@/contexts/theme-context', () => ({
   useTheme: () => ({ theme: 'light', setTheme: jest.fn(), toggleTheme: jest.fn() }),
 }));
 
+jest.mock('@/contexts/auth-context', () => ({
+  useAuth: () => ({
+    user: {
+      id: 'u1',
+      username: 'admin',
+      isAdmin: true,
+      mustChangePassword: false,
+      hasToken: false,
+    },
+    loading: false,
+    error: null,
+    login: jest.fn(),
+    logout: jest.fn(),
+    changePassword: jest.fn(),
+    refresh: jest.fn(),
+  }),
+}));
+
 jest.mock('@/contexts/display-settings-context', () => {
   const actual = jest.requireActual('@/contexts/display-settings-context');
   return {
