@@ -161,6 +161,15 @@ describe('Settings page - token management', () => {
     expect(screen.getByText(/only persist for this session/i)).toBeInTheDocument();
   });
 
+  it('shows the alert rules', () => {
+    render(<SettingsPage />);
+
+    expect(screen.getByText('Alerts')).toBeInTheDocument();
+    expect(screen.getByLabelText('Enable browser notifications')).toBeInTheDocument();
+    expect(screen.getByLabelText('Queue warning (minutes)')).toHaveValue(30);
+    expect(screen.getByLabelText('Runtime warning (minutes)')).toHaveValue(90);
+  });
+
   it('shows the security and privacy model', () => {
     render(<SettingsPage />);
 

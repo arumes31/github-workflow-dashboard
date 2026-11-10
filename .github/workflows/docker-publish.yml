@@ -104,6 +104,7 @@ jobs:
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
           scanners: vuln
+          limit-severities-for-sarif: true
           ignore-unfixed: true
           trivyignores: .trivyignore
           exit-code: "1"
